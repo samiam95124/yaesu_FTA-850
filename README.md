@@ -103,7 +103,7 @@ radio off and on again to use it.
 | ROUTES | FTA-850 only. The 40 routes: name, group, start and destination memories and up to 30 via points, all memories with a position. Start, Dest and the ADD chooser step through those memories; ADD appends the chosen one, REMOVE takes the last off |
 | WEATHER | Names and scan flags of the ten NOAA weather channels |
 | SETUP | The Configuration and COMM Setup menus, the nine group names (the FTA-750 family keeps group 1 as FLAG), and the resets: function, memory, COMM, GPS, configuration, factory on the FTA-850; the 750 family joins COMM and GPS |
-| GPS | The GPS Setup menu, and the logger: STATUS, DOWNLOAD to a `.gpx`, `.kml`, `.nmea` or `.csv` file, ERASE (twice), and the radio's last position (the newest log point): POSITION fetches it without saving a file. Below it, this computer's position: LOCATE asks the tool kit and shows the figures with where they came from |
+| GPS | The GPS Setup menu, and the logger: STATUS, DOWNLOAD to a `.gpx`, `.kml`, `.nmea` or `.csv` file, ERASE (twice), and the radio's last position (the newest log point): POSITION fetches it without saving a file. Below it, this computer's position: LOCATE asks the tool kit (a position set in `ami.cfg`, else the city the internet address maps to) and shows the figures |
 | IMAGE | The raw memory image as a hex dump; bright bytes are the ones a write sends |
 
 Fields: click a text field and type; Enter keeps the change, Esc drops it,
@@ -156,8 +156,8 @@ positions:
   `longitude` set in the services block of `ami.cfg`, or failing that the
   city its internet address maps to (approximate, and `location_lookup 0`
   in `ami.cfg` stops that lookup). The status line says which was used,
-  and the GPS page's LOCATE shows the computer's position, its altitude in
-  feet (the terrain height there) and where each figure came from.
+  and the GPS page's LOCATE shows the computer's position and its altitude
+  in feet (the terrain height there).
 - Click a row to choose it. The second mouse button adds to the choice:
   the rows from the last click to this one, or a single row; on a row
   already chosen on its own it unpicks it. ADD puts the chosen frequencies in the memory book,

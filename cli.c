@@ -200,7 +200,7 @@ static int do_nearest(const char *argv0, const char *a, const char *b)
     static double dist[60];
     double la, lo;
     int n, i;
-    char what[460], src[300];
+    char what[460];
 
     if (!need_stations(argv0)) return 0;
     if (b) {
@@ -213,9 +213,8 @@ static int do_nearest(const char *argv0, const char *a, const char *b)
         if (!rla && !rlo) { fprintf(stderr, "This computer's position is unknown: set latitude and longitude in ami.cfg or allow the lookup\n"); return 0; }
         la = (double)rla / (double)AMI_LONG_MAX * 90;
         lo = (double)rlo / (double)AMI_LONG_MAX * 180;
-        ami_locsrc(src, sizeof src);
-        snprintf(what, sizeof what, "this computer, %.4f %.4f, %.0f ft (%s)", la, lo,
-                 (double)ami_altitude() / (double)AMI_LONG_MAX * 100000 * 3.28084, src);
+        snprintf(what, sizeof what, "this computer, %.4f %.4f, %.0f ft (from ami.cfg if set there, else its internet address: approximate)", la, lo,
+                 (double)ami_altitude() / (double)AMI_LONG_MAX * 100000 * 3.28084);
     } else {
         const station *s;
 

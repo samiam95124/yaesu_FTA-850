@@ -182,7 +182,7 @@ static double fix_lat, fix_lon;
 static unsigned long fix_time;               /* when it was logged, seconds since 1970 UTC */
 static int    host_done, host_have;          /* this computer's position was asked for, and is known */
 static double host_lat, host_lon, host_alt;  /* degrees, metres (shown in feet: aviation) */
-static char   host_src[300];                 /* where the tool kit got it */
+#define HOST_HOW "from ami.cfg if a position is set there, else the city the internet address maps to: approximate"
 
 /* ask the tool kit where this computer is (ami.cfg, or a lookup of its
    internet address: it may take a few seconds the first time) */
@@ -193,7 +193,6 @@ static void host_locate(void)
     la = ami_latitude();
     lo = ami_longitude();
     al = ami_altitude();
-    ami_locsrc(host_src, sizeof host_src);
     host_done = 1;
     host_have = la || lo;
     host_lat = (double)la / (double)AMI_LONG_MAX * 90;
@@ -1099,12 +1098,6 @@ static void draw_gps_page(void)
     text(776, 472, -1, "THIS COMPUTER'S POSITION");
     font(AMI_FONT_SIGN, 11, FALSE);
     if (host_done) {
-        /* the tool kit's account, "position from ..., altitude from ...", a
-           line each */
-        char src[300], *alt = strstr(host_src, ", altitude");
-
-        snprintf(src, sizeof src, "%s", host_src);
-        if (alt) src[alt - host_src] = 0;
         if (host_have) {
             char pos[48];
 
@@ -1117,9 +1110,8 @@ static void draw_gps_page(void)
         }
         text(776, 494, -1, buf);
         color(200, 205, 215);
-        fit(src, RX2 - 4 - 776 - 8, buf, sizeof buf);
-        text(776, 510, -1, buf);
-        if (alt) { fit(alt + 2, RX2 - 4 - 776 - 8, buf, sizeof buf); text(776, 526, -1, buf); }
+        text(776, 510, -1, "Position from ami.cfg if set there, else the city the internet address maps to;");
+        text(776, 526, -1, "altitude from ami.cfg, else the terrain height at that position. Approximate.");
     } else {
         color(200, 205, 215);
         text(776, 494, -1, "LOCATE asks the tool kit: a position set in ami.cfg, else the city the");
@@ -1945,7 +1937,7 @@ static int pop_nearest_host(void)
     if (!host_done) host_locate();
     if (!host_have) return 0;
     fmt_fix(host_lat, host_lon, pos, sizeof pos);
-    snprintf(what, sizeof what, "this computer, %s (%s)", pos, host_src);
+    snprintf(what, sizeof what, "this computer, %s (%s)", pos, HOST_HOW);
     pop_nearest_at(host_lat, host_lon, what);
     return 1;
 }

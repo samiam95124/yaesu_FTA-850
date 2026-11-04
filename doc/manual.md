@@ -284,8 +284,7 @@ source; a radio whose logger has never been on has none to give.
 is: a position set in the services block of `ami.cfg` (`latitude`,
 `longitude`, `altitude`), or failing that the city its internet address
 maps to and the terrain height there, from public services, approximate
-and only on request. The figures are shown with where each came from;
-altitude is in feet. `location_lookup 0` in `ami.cfg` forbids the network.
+and only on request. Altitude is in feet. `location_lookup 0` in `ami.cfg` forbids the network.
 The station finder's NEAREST uses this when nothing better is known.
 
 ## 11. The image page

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=FTA-850
+Comment=Yaesu FTA-850 air band transceiver programmer
+Exec=@DIR@/fta850
+Path=@DIR@
+Terminal=false
+Categories=Utility;Electronics;HamRadio;

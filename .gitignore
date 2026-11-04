@@ -1,0 +1,8 @@
+# built programs and debug bundles
+fta850
+fta850cli
+fta850_shot
+*.dSYM/
+*.o
+# the manual's intermediate rendering (make manual remakes it)
+doc/manual.html

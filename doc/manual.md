@@ -6,25 +6,26 @@ memory book, routes, weather channels and setup menus on screen, looks up
 airports and navaids to add, downloads the GPS log, and writes the result
 back. A command line tool does the same without a window.
 
-1. [Getting started](#getting-started)
-2. [Putting the radio in CP mode](#putting-the-radio-in-cp-mode)
-3. [The window](#the-window)
-4. [Working with the image](#working-with-the-image)
-5. [The memory book](#the-memory-book)
-6. [The station finder](#the-station-finder)
-7. [Routes](#routes)
-8. [Weather channels](#weather-channels)
-9. [Setup](#setup)
-10. [GPS and the logger](#gps-and-the-logger)
-11. [The image page](#the-image-page)
-12. [Writing to the radio](#writing-to-the-radio)
-13. [The models](#the-models)
-14. [The command line tool](#the-command-line-tool)
-15. [Keyboard reference](#keyboard-reference)
-16. [Files and folders](#files-and-folders)
-17. [When something goes wrong](#when-something-goes-wrong)
+1. [Getting started](#1-getting-started)
+2. [Putting the radio in CP mode](#2-putting-the-radio-in-cp-mode)
+3. [The window](#3-the-window)
+4. [Working with the image](#4-working-with-the-image)
+5. [The memory book](#5-the-memory-book)
+6. [The station finder](#6-the-station-finder)
+7. [Routes](#7-routes)
+8. [Weather channels](#8-weather-channels)
+9. [Setup](#9-setup)
+10. [GPS and the logger](#10-gps-and-the-logger)
+11. [The image page](#11-the-image-page)
+12. [Writing to the radio](#12-writing-to-the-radio)
+13. [The models](#13-the-models)
+14. [The command line tool](#14-the-command-line-tool)
+15. [Keyboard reference](#15-keyboard-reference)
+16. [Files and folders](#16-files-and-folders)
+17. [When something goes wrong](#17-when-something-goes-wrong)
+18. [Index](#index)
 
-## Getting started
+## 1. Getting started
 
 Build it with `make` in the project folder; it needs the AMI tool kit in
 `~/projects/amitk` (or `AMIDIR=...`). `make install` puts "FTA-850" and
@@ -49,7 +50,7 @@ The simulator is a good way to learn the program: every page works on a
 made up radio, nothing you do reaches hardware, and the station finder
 works the same.
 
-## Putting the radio in CP mode
+## 2. Putting the radio in CP mode
 
 The radio only talks to the computer in its programming mode, which Yaesu
 calls CP mode:
@@ -73,7 +74,7 @@ itself an FTA-750 there, so the USB name cannot be trusted.)
 
 When you are done, switch the radio off and on again to use it normally.
 
-## The window
+## 3. The window
 
 ![The panel](panel.png)
 
@@ -104,12 +105,12 @@ and OPEN, NEW or READ RADIO when there are unsaved changes) ask to be
 pressed twice: the first press turns them red and says CONFIRM for four
 seconds.
 
-## Working with the image
+## 4. Working with the image
 
 | Button | What it does |
 |---|---|
 | READ RADIO | Fetches the radio's memory into the panel. 32 kB on an FTA-850 (about 30 s), 16 kB on the others. Replaces what was loaded. |
-| WRITE RADIO | Programs the panel's image back. See [Writing to the radio](#writing-to-the-radio). |
+| WRITE RADIO | Programs the panel's image back. See [Writing to the radio](#12-writing-to-the-radio). |
 | OPEN | Loads a `.dat` file: one saved here, or one from Yaesu's YCE46 or YCE01 software, which use the same format. The model comes from the file. |
 | SAVE / SAVE AS | Writes the image to a `.dat` file. SAVE reuses the name it was opened from or asks for one. |
 | NEW | A factory default image for the model shown beside the button: no memories, everything as delivered. The choice follows the connected radio once it is known; click it to make an image for another model. |
@@ -118,7 +119,7 @@ seconds.
 Always SAVE a copy of the first read from a radio before changing
 anything, so you can put it back.
 
-## The memory book
+## 5. The memory book
 
 The radio's memories: 400 on the FTA-850, 200 on the others, each with:
 
@@ -156,7 +157,7 @@ An entry that is not complete (no name, no frequency and no position, a
 bad frequency) is explained in orange under the editor, and WRITE RADIO
 refuses an image that has one.
 
-## The station finder
+## 6. The station finder
 
 STATIONS on the memory page, or the `f` key, opens a second window that
 looks up airports, heliports, seaplane bases and navaids with their
@@ -216,7 +217,7 @@ finder.
 The data is volunteer maintained. Check a frequency against a current
 chart or supplement before relying on it in the air.
 
-## Routes
+## 7. Routes
 
 FTA-850 only. Up to 40 routes, each a name, a group, a start memory, a
 destination memory and up to 30 via points, all memories that have a
@@ -230,14 +231,14 @@ appends it, REMOVE takes the last one off, CLEAR removes them all. DELETE
 removes the route, ALL (twice) every route. A route that is not complete
 is explained under the editor and blocks WRITE RADIO.
 
-## Weather channels
+## 8. Weather channels
 
 The ten NOAA weather channels have fixed frequencies; what you can change
 is each one's name and whether it is in the weather scan.
 
 ![Weather channels](weather.png)
 
-## Setup
+## 9. Setup
 
 The Configuration and COMM Setup menus of the radio, the group names, and
 the resets.
@@ -259,7 +260,7 @@ changes the image; WRITE RADIO sends it, and a factory reset also writes
 the parts of the memory a normal write leaves alone (Bluetooth pairings
 on the FTA-850) and erases the GPS log.
 
-## GPS and the logger
+## 10. GPS and the logger
 
 ![GPS](gps.png)
 
@@ -285,7 +286,7 @@ and only on request. The figures are shown with where each came from;
 altitude is in feet. `location_lookup 0` in `ami.cfg` forbids the network.
 The station finder's NEAREST uses this when nothing better is known.
 
-## The image page
+## 11. The image page
 
 ![Image](image.png)
 
@@ -296,7 +297,7 @@ bytes are the ones WRITE RADIO sends; dim ones are left alone on a write
 is read only: use it to see what a read brought in, what a write will
 touch, or to compare two images.
 
-## Writing to the radio
+## 12. Writing to the radio
 
 WRITE RADIO, pressed twice, programs the image into the radio:
 
@@ -317,7 +318,7 @@ from a saved image.
 On an FTA-850 the firmware has to be 2.01 or later to be programmed; the
 panel checks.
 
-## The models
+## 13. The models
 
 | Model | Image | Memories | Names | Routes | GPS | NAV band | Positions | CP mode key |
 |---|---|---|---|---|---|---|---|---|
@@ -337,7 +338,7 @@ unchanged, and only then edit.
 Files from Yaesu's own programs open directly: YCE46's for the FTA-850,
 YCE01's for the others. Files saved here open in those programs too.
 
-## The command line tool
+## 14. The command line tool
 
 `fta850cli` works the link and the files without a window, for scripts and
 for checking a radio:
@@ -361,7 +362,7 @@ for checking a radio:
 simulator. Everything it prints about a radio comes from the same code the
 panel uses.
 
-## Keyboard reference
+## 15. Keyboard reference
 
 Main window:
 
@@ -392,7 +393,7 @@ Station finder:
 | PageUp, PageDown, Home, End | scroll |
 | Esc | drop a changed query, or close the window |
 
-## Files and folders
+## 16. Files and folders
 
 - `fta850`, `fta850cli`: the programs. `make install` adds menu entries
   that run `fta850` from this folder.
@@ -402,7 +403,7 @@ Station finder:
 - `doc/`: this manual and the pictures.
 - `.dat` files: images, 32 or 16 kB, the format Yaesu's software uses.
 
-## When something goes wrong
+## 17. When something goes wrong
 
 **"No radio found on USB."** The radio is off, not plugged into the DATA
 jack, or on a port the program does not look at (`-p PORT` names one). On
@@ -412,7 +413,7 @@ Linux it appears as `/dev/ttyACM*` and `/dev/serial/by-id/usb-YAESU_...`.
 (`sudo usermod -aG dialout $USER`, then log in again).
 
 **"Radio is on but not in CP mode."** See [Putting the radio in CP
-mode](#putting-the-radio-in-cp-mode). The status bar names the key.
+mode](#2-putting-the-radio-in-cp-mode). The status bar names the key.
 
 **"Port open, radio not answering."** Another program may hold the port
 (a second copy of this panel, a terminal program, another panel that
@@ -433,3 +434,98 @@ is from another model; NEW makes one for the right model.
 
 **The window is tiny.** Raise `console_points` in `ami.cfg`, or just
 resize the window; everything scales.
+
+## Index
+
+The numbers are sections.
+
+- 8.33 kHz step: [5](#5-the-memory-book), [9](#9-setup)
+- ADD (station finder): [6](#6-the-station-finder)
+- ALL (delete every memory): [5](#5-the-memory-book)
+- altitude, this computer's: [10](#10-gps-and-the-logger)
+- AMI tool kit: [1](#1-getting-started)
+- ami.cfg: [1](#1-getting-started), [10](#10-gps-and-the-logger), [16](#16-files-and-folders)
+- arrow keys: [15](#15-keyboard-reference)
+- Bluetooth pairings: [9](#9-setup), [11](#11-the-image-page), [12](#12-writing-to-the-radio)
+- CANCEL: [4](#4-working-with-the-image), [12](#12-writing-to-the-radio)
+- choice fields: [3](#3-the-window)
+- command line tool: [14](#14-the-command-line-tool)
+- CONFIRM, buttons pressed twice: [3](#3-the-window)
+- console_points, window size: [1](#1-getting-started), [17](#17-when-something-goes-wrong)
+- control-click: [6](#6-the-station-finder)
+- CP mode: [2](#2-putting-the-radio-in-cp-mode), [13](#13-the-models), [17](#17-when-something-goes-wrong)
+- .csv log file: [10](#10-gps-and-the-logger), [14](#14-the-command-line-tool)
+- .dat files: [4](#4-working-with-the-image), [13](#13-the-models), [16](#16-files-and-folders)
+- data folder, station files: [6](#6-the-station-finder), [16](#16-files-and-folders)
+- DELETE: [5](#5-the-memory-book), [7](#7-routes)
+- dialout group: [1](#1-getting-started), [17](#17-when-something-goes-wrong)
+- distance, nearest stations: [6](#6-the-station-finder)
+- dual watch frequency: [9](#9-setup)
+- ERASE (GPS log): [10](#10-gps-and-the-logger)
+- EXPAND ALL: [6](#6-the-station-finder)
+- FACTORY reset: [9](#9-setup), [12](#12-writing-to-the-radio)
+- firmware, version needed: [12](#12-writing-to-the-radio)
+- FLAG group: [5](#5-the-memory-book), [9](#9-setup), [13](#13-the-models)
+- frequency bands: [5](#5-the-memory-book), [13](#13-the-models)
+- frequency types (TWR, GND, ATIS ...): [6](#6-the-station-finder)
+- frequency, entering: [5](#5-the-memory-book)
+- FTA-450L: [13](#13-the-models)
+- FTA-550L: [13](#13-the-models)
+- FTA-750L: [13](#13-the-models)
+- FTA-850L: [13](#13-the-models)
+- GPS log, downloading: [10](#10-gps-and-the-logger), [14](#14-the-command-line-tool)
+- GPS position, the radio's: [10](#10-gps-and-the-logger), [6](#6-the-station-finder)
+- .gpx log file: [10](#10-gps-and-the-logger), [14](#14-the-command-line-tool)
+- group names: [9](#9-setup)
+- groups, memory: [5](#5-the-memory-book), [9](#9-setup)
+- hex dump: [11](#11-the-image-page)
+- image: [3](#3-the-window), [4](#4-working-with-the-image), [11](#11-the-image-page)
+- installing: [1](#1-getting-started)
+- keyboard: [15](#15-keyboard-reference)
+- .kml log file: [10](#10-gps-and-the-logger), [14](#14-the-command-line-tool)
+- LOCATE: [10](#10-gps-and-the-logger), [6](#6-the-station-finder)
+- location_lookup: [10](#10-gps-and-the-logger)
+- logger, GPS: [10](#10-gps-and-the-logger)
+- memory book: [5](#5-the-memory-book)
+- memory number: [5](#5-the-memory-book), [7](#7-routes)
+- memory scan: [5](#5-the-memory-book)
+- MENU key (CP mode): [2](#2-putting-the-radio-in-cp-mode), [13](#13-the-models)
+- model, choosing for NEW: [4](#4-working-with-the-image)
+- model, detecting the: [2](#2-putting-the-radio-in-cp-mode), [13](#13-the-models)
+- name, memory: [5](#5-the-memory-book)
+- NAV band: [5](#5-the-memory-book), [13](#13-the-models)
+- NEAREST: [6](#6-the-station-finder)
+- NEW (image): [4](#4-working-with-the-image)
+- NEW (memory, route): [5](#5-the-memory-book), [7](#7-routes)
+- .nmea log file: [10](#10-gps-and-the-logger), [14](#14-the-command-line-tool)
+- OPEN: [4](#4-working-with-the-image)
+- OurAirports: [6](#6-the-station-finder), [16](#16-files-and-folders)
+- port, serial: [1](#1-getting-started), [17](#17-when-something-goes-wrong)
+- POSITION (radio's last): [10](#10-gps-and-the-logger)
+- positions, entering: [5](#5-the-memory-book)
+- READ RADIO: [4](#4-working-with-the-image)
+- resets: [9](#9-setup)
+- routes: [7](#7-routes)
+- runway course (RWY): [5](#5-the-memory-book), [13](#13-the-models)
+- SAVE, SAVE AS: [4](#4-working-with-the-image)
+- scan, memory: [5](#5-the-memory-book)
+- scan, weather: [8](#8-weather-channels)
+- SEARCH: [6](#6-the-station-finder)
+- shift, spurious: [5](#5-the-memory-book)
+- shift-click: [6](#6-the-station-finder)
+- simulator: [1](#1-getting-started), [14](#14-the-command-line-tool)
+- split frequency: [9](#9-setup)
+- SQL key (CP mode): [2](#2-putting-the-radio-in-cp-mode), [13](#13-the-models)
+- station finder: [6](#6-the-station-finder)
+- STATUS (logger): [10](#10-gps-and-the-logger)
+- status bar: [3](#3-the-window)
+- Tab key: [3](#3-the-window), [15](#15-keyboard-reference)
+- troubleshooting: [17](#17-when-something-goes-wrong)
+- USB: [2](#2-putting-the-radio-in-cp-mode), [17](#17-when-something-goes-wrong)
+- via points: [7](#7-routes)
+- WAYPOINT: [6](#6-the-station-finder)
+- waypoint (memory without a frequency): [5](#5-the-memory-book), [6](#6-the-station-finder)
+- weather channels: [8](#8-weather-channels)
+- window, resizing: [1](#1-getting-started)
+- WRITE RADIO: [4](#4-working-with-the-image), [12](#12-writing-to-the-radio)
+- YCE46, YCE01 (Yaesu software): [4](#4-working-with-the-image), [13](#13-the-models)

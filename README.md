@@ -158,8 +158,9 @@ positions:
   in `ami.cfg` stops that lookup). The status line says which was used,
   and the GPS page's LOCATE shows the computer's position, its altitude in
   feet (the terrain height there) and where each figure came from.
-- Click a row to choose it, shift-click to choose a range, control-click
-  to add or remove one. ADD puts the chosen frequencies in the memory book,
+- Click a row to choose it. The second mouse button adds to the choice:
+  the rows from the last click to this one, or a single row; on a row
+  already chosen on its own it unpicks it. ADD puts the chosen frequencies in the memory book,
   named like `KRHV-TWR` (`UNICOM` becomes `UNI`, `VOR-DME` and `VORTAC`
   become `VOR`), each with the facility's position; a chosen facility adds
   all of its usable frequencies. WAYPOINT adds a facility as a position

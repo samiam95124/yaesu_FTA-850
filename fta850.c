@@ -2013,7 +2013,7 @@ static void pop_add(int waypoint)
 
     if (!have_img) { pset_note("Nothing to add to yet: READ RADIO, OPEN a file or NEW in the main window first"); return; }
     if (busy()) { pset_note("The radio is busy"); return; }
-    if (!nspicks) { pset_note("Choose a station or a frequency first: click a row, shift-click a range, control-click to add one"); return; }
+    if (!nspicks) { pset_note("Choose a station or a frequency first: click a row; the second mouse button adds rows to the choice"); return; }
     memset(done, 0, sizeof done);
     for (i = 0; i < nspicks; i++) {
         const station *s = sta_get(shits[spicks[i].hit].sta);
@@ -2031,26 +2031,29 @@ static void pop_add(int waypoint)
     set_note(m);
 }
 
-/* a click on tree row r with the modifier keys held */
-static void pop_pick(int r, int mods)
+/* a click on tree row r: mouse button 1 chooses the row alone; button 2
+   adds to the choice, the rows from the last click to this one (a row
+   already chosen on its own is dropped instead, so button 2 also unpicks) */
+static void pop_pick(int r, int add)
 {
     int a, b, i;
 
     if (r < 0 || r >= nsrows) return;
-    if ((mods & AMI_MOD_SHIFT) && sanchor >= 0 && sanchor < nsrows) {
-        a = sanchor < r ? sanchor : r;
-        b = sanchor < r ? r : sanchor;
-        if (!(mods & AMI_MOD_CTRL)) nspicks = 0;
-        for (i = a; i <= b; i++) pick_add(srows[i].hit, srows[i].k);
-    } else if (mods & AMI_MOD_CTRL) {
+    if (add && sanchor >= 0 && sanchor < nsrows) {
+        if (sanchor == r && picked(srows[r].hit, srows[r].k)) pick_remove(srows[r].hit, srows[r].k);
+        else {
+            a = sanchor < r ? sanchor : r;
+            b = sanchor < r ? r : sanchor;
+            for (i = a; i <= b; i++) pick_add(srows[i].hit, srows[i].k);
+        }
+    } else if (add) {
         if (picked(srows[r].hit, srows[r].k)) pick_remove(srows[r].hit, srows[r].k);
         else pick_add(srows[r].hit, srows[r].k);
-        sanchor = r;
     } else {
         nspicks = 0;
         pick_add(srows[r].hit, srows[r].k);
-        sanchor = r;
     }
+    sanchor = r;
     srows_build();
 }
 
@@ -2225,7 +2228,7 @@ static void pop_redraw(void)
     button(108, 476, 212, 504, "WAYPOINT", H_STA_WPT, have_img && nspicks > 0 && !busy(), 0);
     button(220, 476, 330, 504, anyopen ? "COLLAPSE ALL" : "EXPAND ALL", H_STA_EXPAND, nshits > 0, 0);
     button(820, 476, 906, 504, "CLOSE", H_STA_CLOSE, 1, 0);
-    help(14, 516, "Click the arrow of a facility to see its frequencies. Click a row to choose it, shift-click for a range, control-click to add one more.");
+    help(14, 516, "Click the arrow of a facility to see its frequencies. Click a row to choose it; the second mouse button adds the rows from the last click to this one.");
     help(14, 532, "ADD puts the chosen frequencies in the memory book, named like KRHV-TWR with the facility's position; a chosen facility adds all of its");
     help(14, 548, "usable frequencies. WAYPOINT adds a facility as a position only, for routes. Memories go in the group with scan as set above.");
     help(14, 564, "Station data: OurAirports (ourairports.com/data), public domain. Check a frequency against a current chart before relying on it.");
@@ -2233,7 +2236,7 @@ static void pop_redraw(void)
     if (pnote[0] && t < pnote_until) { color(240, 200, 90); fit(pnote, 880, b, sizeof b); }
     else if (!have_img) { color(240, 170, 80); snprintf(b, sizeof b, "Nothing to add to yet: READ RADIO, OPEN a file or press NEW in the main window, then ADD lights up"); }
     else if (busy()) { color(130, 138, 155); snprintf(b, sizeof b, "Waiting for the radio..."); }
-    else if (!nspicks) { color(130, 138, 155); snprintf(b, sizeof b, "Click a row to choose it (it turns blue), then ADD. %d stations loaded", sta_n); }
+    else if (!nspicks) { color(130, 138, 155); snprintf(b, sizeof b, "Click a row to choose it (it turns blue), the second mouse button to choose more, then ADD. %d stations loaded", sta_n); }
     else { color(130, 138, 155); snprintf(b, sizeof b, "%d row%s chosen: ADD puts %s in the memory book", nspicks, nspicks == 1 ? "" : "s", nspicks == 1 ? "it" : "them"); }
     ltext(14, 578, 598, b);
 
@@ -2340,9 +2343,9 @@ static void pop_event(ami_evtrec *er)
                 else pop_scroll(d * 3);
                 break;
             }
-            if (er->amoubn != 1) break;
+            if (er->amoubn != 1 && er->amoubn != 2) break;
             id = hit(pmx, pmy);
-            pmods = (int)ami_modkeys(popwf);
+            pmods = er->amoubn == 2;    /* button 2 adds to the choice */
             if (id == H_SB_THUMB) {
                 const hitbox *th = hitbox_of(H_SB_THUMB);
 
@@ -2351,7 +2354,7 @@ static void pop_event(ami_evtrec *er)
             } else ppressed = id;
             break;
         case ami_etmoubd:
-            if (er->dmoubn != 1) break;
+            if (er->dmoubn != 1 && er->dmoubn != 2) break;
             if (pdrag_thumb) pdrag_thumb = 0;
             else if (ppressed != H_NONE) {
                 if (hit(pmx, pmy) == ppressed) pop_click(ppressed);
@@ -2382,7 +2385,7 @@ static void pop_event(ami_evtrec *er)
             r = sanchor < 0 ? 0 : sanchor + (er->etype == ami_etup ? -1 : 1);
             if (r < 0) r = 0;
             if (r >= nsrows) r = nsrows - 1;
-            if (r >= 0) { pop_pick(r, (int)ami_modkeys(popwf) & AMI_MOD_SHIFT); pop_show_row(r); }
+            if (r >= 0) { pop_pick(r, 0); pop_show_row(r); }
             break;
         case ami_etleft:
         case ami_etright:
@@ -2629,7 +2632,7 @@ int main(int argc, char *argv[])
                     snprintf(edit_buf, sizeof edit_buf, "%s", getenv("FTA850_POP"));
                     edit_len = (int)strlen(edit_buf);
                     if (getenv("FTA850_NEAR")) pop_nearest(); else pop_click(H_STA_SEARCH);
-                    if (nsrows > 3) { pop_pick(1, 0); pop_pick(3, AMI_MOD_SHIFT); }
+                    if (nsrows > 3) { pop_pick(1, 0); pop_pick(3, 1); }
                     screen_capture_window(popwf);
                 }
                 if (shot_file && now_ms() >= shot_at) { redraw(); if (popwf) pop_redraw(); screen_capture(); er.etype = ami_etterm; }

@@ -196,9 +196,11 @@ The status line at the bottom of the window says which one it used.
 
 ![NEAREST around Reid-Hillview](nearest.png)
 
-**Choosing and adding.** Click a row to choose it (it turns blue).
-Shift-click another row to choose everything between, control-click to
-add or remove one row. Up and Down move the choice. Then:
+**Choosing and adding.** Click a row to choose it (it turns blue). The
+second mouse button adds to the choice: click another row with it and
+everything from the last click to that row is chosen as well; click a row
+that is already chosen on its own with it to unpick it. Up and Down move
+the choice. Then:
 
 - **ADD** puts the chosen frequencies in the memory book, named after the
   facility and the type, `KRHV-TWR` style (`UNICOM` becomes `UNI`,
@@ -388,7 +390,7 @@ Station finder:
 | Key | Action |
 |---|---|
 | typing, Enter | the query, search |
-| Up, Down | move the choice (with shift: extend it) |
+| Up, Down | move the choice |
 | Left, Right | close or open the chosen facility |
 | PageUp, PageDown, Home, End | scroll |
 | Esc | drop a changed query, or close the window |
@@ -452,7 +454,6 @@ The numbers are sections.
 - command line tool: [14](#14-the-command-line-tool)
 - CONFIRM, buttons pressed twice: [3](#3-the-window)
 - console_points, window size: [1](#1-getting-started), [17](#17-when-something-goes-wrong)
-- control-click: [6](#6-the-station-finder)
 - CP mode: [2](#2-putting-the-radio-in-cp-mode), [13](#13-the-models), [17](#17-when-something-goes-wrong)
 - .csv log file: [10](#10-gps-and-the-logger), [14](#14-the-command-line-tool)
 - .dat files: [4](#4-working-with-the-image), [13](#13-the-models), [16](#16-files-and-folders)
@@ -511,8 +512,8 @@ The numbers are sections.
 - scan, memory: [5](#5-the-memory-book)
 - scan, weather: [8](#8-weather-channels)
 - SEARCH: [6](#6-the-station-finder)
+- second mouse button (choosing more): [6](#6-the-station-finder)
 - shift, spurious: [5](#5-the-memory-book)
-- shift-click: [6](#6-the-station-finder)
 - simulator: [1](#1-getting-started), [14](#14-the-command-line-tool)
 - split frequency: [9](#9-setup)
 - SQL key (CP mode): [2](#2-putting-the-radio-in-cp-mode), [13](#13-the-models)
@@ -523,8 +524,8 @@ The numbers are sections.
 - troubleshooting: [17](#17-when-something-goes-wrong)
 - USB: [2](#2-putting-the-radio-in-cp-mode), [17](#17-when-something-goes-wrong)
 - via points: [7](#7-routes)
-- WAYPOINT: [6](#6-the-station-finder)
 - waypoint (memory without a frequency): [5](#5-the-memory-book), [6](#6-the-station-finder)
+- WAYPOINT: [6](#6-the-station-finder)
 - weather channels: [8](#8-weather-channels)
 - window, resizing: [1](#1-getting-started)
 - WRITE RADIO: [4](#4-working-with-the-image), [12](#12-writing-to-the-radio)

@@ -331,8 +331,8 @@ panel checks.
 
 ![A simulated FTA-750](fta750.png)
 
-The FTA-850L has been exercised on a real radio (reading, status and the
-logger; the first write is still to be tried). The other three were built
+The FTA-850L has been read, edited and programmed on a real radio, and
+the logger worked on it too. The other three were built
 from Yaesu's YCE01 software and its default images and checked against the
 simulator only. On a real one: READ RADIO, SAVE the file, write it back
 unchanged, and only then edit.

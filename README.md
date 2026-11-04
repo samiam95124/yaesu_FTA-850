@@ -14,7 +14,7 @@ band handhelds. The model is read from the radio when the session starts
 | FTA-550L | 16 kB | 200 | 15 | no | no | yes | yes | MENU |
 | FTA-450L | 16 kB | 200 | 15 | no | no | no | no | MENU |
 
-The FTA-850L has been exercised on a real radio. The other three were built
+The FTA-850L has been read and programmed on a real radio. The other three were built
 from Yaesu's YCE01 software and its default images and checked against the
 simulator only, so on a real one: READ RADIO, SAVE the file, and write it
 back unchanged before trusting any edit.
@@ -257,10 +257,11 @@ the module unreachable now and then, so this program does not.
 
 - The panel is drawn from the radio's description, not from the real
   thing, so the keypad is an approximation.
-- The FTA-850's protocol and memory layout were confirmed on the radio by
-  reading it; the first write is still to be tried, so SAVE a copy of the
-  first read before writing anything back. The FTA-750, 550 and 450 layouts
-  come from Yaesu's YCE01 software and have met no radio yet.
+- The FTA-850's protocol and memory layout were confirmed on a real radio:
+  read, edited and written back, with the radio taking the new memories.
+  SAVE a copy of the first read anyway, so there is always something to
+  put back. The FTA-750, 550 and 450 layouts come from Yaesu's YCE01
+  software and have met no radio yet.
 - The 8.33 kHz frequencies are entered as the radio shows them (118.005 for
   118.0083 MHz), as in YCE46.
 - Closing the window drops unsaved changes without asking.

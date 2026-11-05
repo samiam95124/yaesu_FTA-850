@@ -28,18 +28,21 @@ back. A command line tool does the same without a window.
 ## 1. Getting started
 
 Build it with `make` in the project folder; it needs the AMI tool kit in
-`~/projects/amitk` (or `AMIDIR=...`). `make install` puts "FTA-850" and
-"FTA-850 (simulated)" in the application menu.
+`~/projects/amitk` (or `AMIDIR=...`), which `configure` (`configure.bat`
+on Windows) fetches and builds. `make install` puts "FTA-850" and
+"FTA-850 (simulated)" in the Linux application menu.
 
     cd ~/projects/yaesu_FTA-850
     make
     ./fta850              # find the radio on USB
     ./fta850 -p /dev/ttyACM1
+    ./fta850 -p COM4      # Windows: a given COM port
     ./fta850 --sim        # no radio: a simulated FTA-850 with sample memories
     ./fta850 --sim 750    # a simulated FTA-750 (or 550, 450)
 
 On Linux your account has to be in the `dialout` group to open the port;
-the status bar says so if it is not.
+the status bar says so if it is not. On Windows the radio is a COM port
+that needs nothing installed.
 
 The window opens sized from the console font (`console_points` in
 `ami.cfg`, 11 points at the display's DPI unless set), and everything in
@@ -408,10 +411,15 @@ Station finder:
 
 **"No radio found on USB."** The radio is off, not plugged into the DATA
 jack, or on a port the program does not look at (`-p PORT` names one). On
-Linux it appears as `/dev/ttyACM*` and `/dev/serial/by-id/usb-YAESU_...`.
+Linux it appears as `/dev/ttyACM*` and `/dev/serial/by-id/usb-YAESU_...`,
+on Windows as a COM port, "USB Serial Device" in the Device Manager.
 
 **"No permission for /dev/ttyACM1."** Join the `dialout` group
 (`sudo usermod -aG dialout $USER`, then log in again).
+
+**"Cannot open COM4: in use by another program."** Windows lets one program
+hold a COM port: close the other one (a terminal program, Yaesu's YCE46,
+or another copy of this).
 
 **"Radio is on but not in CP mode."** See [Putting the radio in CP
 mode](#2-putting-the-radio-in-cp-mode). The status bar names the key.

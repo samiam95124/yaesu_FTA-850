@@ -33,6 +33,22 @@ files, and talks the same protocol, which was read from that software.
 
 ## Build and run
 
+`configure` puts on the machine what the build and the program need, and
+says so when it cannot:
+
+    ./configure              # install whatever is missing
+    ./configure --prompt     # the same, asking yes or no before each install
+    ./configure --check      # only report what is missing
+
+It covers the build tools (the Xcode command line tools on a Mac), the
+development packages the AMI tool kit links against (apt-get on Linux,
+Homebrew on a Mac: openssl@3 and freetype), the AMI tool kit itself,
+which it clones from GitHub into `~/projects/amitk` (or `$AMIDIR`) and
+builds if it is not there, and on Linux the `dialout` group that owns the
+radio's port. Anything it cannot install, such as Homebrew itself, is
+named at the end with what to do, and the program will not build or run
+until it is there. Then:
+
     make                     # needs ~/projects/amitk built (or set AMIDIR)
     ./fta850                 # finds the radio on USB
     ./fta850 -p /dev/ttyACM0 # Linux, a given port

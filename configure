@@ -376,8 +376,23 @@ else
     if checkexists git && askinstall "amitk, cloned from $amirepo"
     then
 
+        #
+        # The submodules are the curses programs (nano, htop, BSDGames),
+        # which the libraries do not need, and their servers are not always
+        # up, so they are fetched after the clone and a failure is only noted.
+        #
         mkdir -p "$(dirname "$amidir")"
-        git clone --recurse-submodules "$amirepo" "$amidir" || warn "The clone of amitk failed"
+        if git clone "$amirepo" "$amidir"
+        then
+
+            git -C "$amidir" submodule update --init --recursive ||
+                echo "    submodules: not all fetched. They are only the curses programs, which the libraries do not need; git submodule update --init --recursive in $amidir fetches them later"
+
+        else
+
+            warn "The clone of amitk failed"
+
+        fi
 
     elif ! checkexists git
     then
@@ -386,7 +401,7 @@ else
 
     else
 
-        warn "amitk is not installed: nothing will build without it. git clone --recurse-submodules $amirepo $amidir"
+        warn "amitk is not installed: nothing will build without it. git clone $amirepo $amidir"
 
     fi
 

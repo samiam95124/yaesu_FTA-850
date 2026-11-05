@@ -11,6 +11,9 @@
 #include <math.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 #include "stations.h"
 
@@ -330,22 +333,38 @@ static int has_data(const char *dir)
     return is_dir(dir) && access(p, R_OK) == 0;
 }
 
+/* the last path separator: either kind on Windows */
+static char *last_sep(char *s)
+{
+    char *p = strrchr(s, '/');
+#ifdef _WIN32
+    char *q = strrchr(s, '\\');
+
+    if (q && (!p || q > p)) p = q;
+#endif
+    return p;
+}
+
 int sta_find_dir(const char *argv0, char *dir, size_t dirlen)
 {
     const char *e = getenv("FTA850_DATA"), *home = getenv("HOME");
     char exe[1024], *p;
-    ssize_t n;
+    long n;
 
     if (e && has_data(e)) { snprintf(dir, dirlen, "%s", e); return 1; }
-    n = readlink("/proc/self/exe", exe, sizeof exe - 1);
+#ifdef _WIN32
+    n = (long)GetModuleFileNameA(NULL, exe, sizeof exe - 1);
+#else
+    n = (long)readlink("/proc/self/exe", exe, sizeof exe - 1);
+#endif
     if (n > 0) {
         exe[n] = 0;
-        p = strrchr(exe, '/');
+        p = last_sep(exe);
         if (p) { *p = 0; snprintf(dir, dirlen, "%s/data", exe); if (has_data(dir)) return 1; }
     }
-    if (argv0 && strchr(argv0, '/')) {
+    if (argv0 && last_sep((char *)argv0)) {
         snprintf(exe, sizeof exe, "%s", argv0);
-        p = strrchr(exe, '/');
+        p = last_sep(exe);
         *p = 0;
         snprintf(dir, dirlen, "%s/data", exe);
         if (has_data(dir)) return 1;
@@ -423,6 +442,18 @@ static int cmp_hit(const void *a, const void *b)
     if (d) return d;
     return strcmp(p->name, q->name);
 }
+
+#ifdef _WIN32
+/* MinGW has no strcasestr */
+static const char *strcasestr(const char *hay, const char *needle)
+{
+    size_t n = strlen(needle);
+
+    for (; *hay; hay++)
+        if (!strncasecmp(hay, needle, n)) return hay;
+    return n ? NULL : hay;
+}
+#endif
 
 /* case-blind substring test */
 static int has_word(const char *hay, const char *needle)

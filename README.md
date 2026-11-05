@@ -19,7 +19,7 @@ from Yaesu's YCE01 software and its default images and checked against the
 simulator only, so on a real one: READ RADIO, SAVE the file, and write it
 back unchanged before trusting any edit.
 
-A program for Linux and macOS that programs a Yaesu FTA-850L air band
+A program for Linux, macOS and Windows that programs a Yaesu FTA-850L air band
 transceiver over its USB port: the memory book, the routes, the weather
 channel names, the setup menus, and the GPS logger. It is written in C using
 the AMI tool kit, and the window shows the radio on the left with its LCD
@@ -47,15 +47,31 @@ which it clones from GitHub into `~/projects/amitk` (or `$AMIDIR`) and
 builds if it is not there, and on Linux the `dialout` group that owns the
 radio's port. Anything it cannot install, such as Homebrew itself, is
 named at the end with what to do, and the program will not build or run
-until it is there. Then:
+until it is there.
+
+On Windows `configure.bat` does the same from a command window, with the
+same options. The tools and packages come from MSYS2's pacman (MinGW gcc,
+make, OpenSSL, libpng and zlib), amitk is cloned into
+`%USERPROFILE%\projects\amitk` (or `%AMIDIR%`, with forward slashes; a
+path with a space in it is used by its short name, `C:\Users\SCOTTF~1\...`,
+since make cannot pass a space to the compiler, and the Makefile's default
+is that same short form) and built with its own `configure.bat`, and the
+radio needs no
+setup: it is a COM port on the `usbser` driver that comes with Windows 10.
+Then:
 
     make                     # needs ~/projects/amitk built (or set AMIDIR)
     ./fta850                 # finds the radio on USB
     ./fta850 -p /dev/ttyACM0 # Linux, a given port
     ./fta850 -p /dev/cu.usbmodem1411      # macOS
+    fta850 -p COM4           # Windows
     ./fta850 --sim           # no hardware: a simulated radio with some memories
     make sim                 # same as ./fta850 --sim
     make install             # FTA-850 and FTA-850 (simulated) in the Linux app menu
+
+On Windows the programs are `fta850.exe` and `fta850cli.exe`, built by
+`make` from a command window with MSYS2's tools on the path, as
+`configure.bat` arranges.
 
 `make` also builds `fta850cli`, a command line tool with the same link
 (it needs only amitk's plain library). `--sim 750` and the like simulate
@@ -90,6 +106,13 @@ Until then the status line says "No permission". The program looks for the
 radio every 2 s, so it can be plugged in or started after the program. Only
 one program can use the port: another panel that grabs ttyACM ports (an
 older AT6301 panel did) makes the radio seem to answer nothing.
+
+On Windows the same device is a COM port (`COM4` or so, "USB Serial
+Device" in the Device Manager) on the `usbser` driver, with no install and
+no permissions. The program finds it through SetupAPI by its USB vendor and
+product (26aa:0024), its USB product string (`FTA-750`), or failing those
+any `usbser` port; `-p COM4` names one. A port that another program holds
+open shows as "in use by another program".
 
 ## The radio has to be in CP mode
 

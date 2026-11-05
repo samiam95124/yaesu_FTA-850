@@ -66,7 +66,11 @@ static void utc(unsigned long t, struct tm *tm)
 {
     time_t tt = (time_t)t;
 
+#ifdef _WIN32
+    gmtime_s(tm, &tt);   /* the C runtime's thread safe form; MinGW has no gmtime_r */
+#else
     gmtime_r(&tt, tm);
+#endif
 }
 
 static int nmea_cs(const char *s)

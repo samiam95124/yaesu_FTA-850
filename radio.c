@@ -6,13 +6,22 @@
 #include <string.h>
 #include <strings.h>
 #include <math.h>
+#include <ctype.h>
 #include <time.h>
 #include <errno.h>
+#ifdef _WIN32
+#include <windows.h>
+#include <initguid.h>
+#include <setupapi.h>
+#include <devguid.h>
+#include <devpkey.h>
+#else
 #include <fcntl.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <termios.h>
 #include <sys/ioctl.h>
+#endif
 
 #include "radio.h"
 #include "cfg.h"
@@ -38,7 +47,6 @@ typedef enum {
 } lstate;
 
 /* link private state: one radio per program */
-static int    fd = -1;
 static char   rx[16384];
 static int    rxlen;
 static lstate st = S_NOPORT;
@@ -83,15 +91,186 @@ const char *radio_opname(radio_op op)
 
 /* ---------------------------------------------------------------- port */
 
-/* The radio by its USB identity (Linux keeps a stable name for it), else the
-   first CDC serial port: ttyACM* on Linux, cu.usbmodem* on macOS. */
-static int find_port(char *out, size_t outlen)
+/* The serial port, non-blocking, in two editions. POSIX: a termios device,
+   found by the radio's USB identity where Linux keeps one in
+   /dev/serial/by-id, else the first CDC serial port (ttyACM* on Linux,
+   cu.usbmodem* on macOS). Windows: a COM port on the usbser driver, found
+   through SetupAPI by the radio's USB vendor and product (26aa:0024), its USB
+   product string ("FTA-750"), or failing those any usbser port. port_desc is
+   the identity it was found by, where the model number is read from. */
+
+static char port_desc[128];   /* the identity the port was found by */
+static char port_err[256];    /* why the last open failed, for the status line */
+
+#ifdef _WIN32
+
+static HANDLE hport = INVALID_HANDLE_VALUE;
+
+static int port_is_open(void)
+{
+    return hport != INVALID_HANDLE_VALUE;
+}
+
+/* The COM port to use: the one named want, if given, else the best candidate
+   for the radio among the ports present. Fills out with its name and
+   port_desc with the USB product string. */
+static int find_port(const char *want, char *out, size_t outlen)
+{
+    HDEVINFO h;
+    SP_DEVINFO_DATA d;
+    DWORD i, sz;
+    int best = 0;
+
+    if (want && !strncmp(want, "\\\\.\\", 4)) want += 4;
+    h = SetupDiGetClassDevsA(&GUID_DEVCLASS_PORTS, NULL, NULL, DIGCF_PRESENT);
+    if (h == INVALID_HANDLE_VALUE) return 0;
+    d.cbSize = sizeof d;
+    for (i = 0; SetupDiEnumDeviceInfo(h, i, &d); i++) {
+        char hw[512] = "", svc[64] = "", name[32] = "", desc[128];
+        WCHAR bus[128] = L"";
+        DEVPROPTYPE pt;
+        HKEY k;
+        int score = 0, j;
+
+        k = SetupDiOpenDevRegKey(h, &d, DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_READ);
+        if (k == INVALID_HANDLE_VALUE) continue;
+        sz = sizeof name - 1;
+        if (RegQueryValueExA(k, "PortName", NULL, NULL, (BYTE *)name, &sz) != ERROR_SUCCESS) name[0] = 0;
+        RegCloseKey(k);
+        if (!name[0]) continue;
+        SetupDiGetDeviceRegistryPropertyA(h, &d, SPDRP_HARDWAREID, NULL, (BYTE *)hw, sizeof hw - 1, NULL);
+        SetupDiGetDeviceRegistryPropertyA(h, &d, SPDRP_SERVICE, NULL, (BYTE *)svc, sizeof svc - 1, NULL);
+        SetupDiGetDevicePropertyW(h, &d, &DEVPKEY_Device_BusReportedDeviceDesc, &pt, (BYTE *)bus, sizeof bus - 2, &sz, 0);
+        for (j = 0; bus[j] && j < (int)sizeof desc - 1; j++) desc[j] = bus[j] < 128 ? (char)bus[j] : '?';
+        desc[j] = 0;
+        for (j = 0; hw[j]; j++) hw[j] = (char)toupper((unsigned char)hw[j]);
+        if (strstr(hw, "VID_26AA&PID_0024")) score = 3;
+        else if (strstr(desc, "FTA-")) score = 2;
+        else if (!strcasecmp(svc, "usbser")) score = 1;
+        if (want) {
+            if (strcasecmp(name, want)) continue;
+            score = 4;
+        }
+        if (score > best) {
+            best = score;
+            snprintf(out, outlen, "%s", name);
+            snprintf(port_desc, sizeof port_desc, "%s", desc);
+        }
+        if (score == 4) break;
+    }
+    SetupDiDestroyDeviceInfoList(h);
+    return best > 0;
+}
+
+static int port_open(const char *path)
+{
+    char full[160];
+    DCB dcb;
+    COMMTIMEOUTS to;
+    DWORD e;
+
+    /* COM10 and up need the device prefix, and it does no harm below */
+    if (!strncmp(path, "\\\\.\\", 4)) snprintf(full, sizeof full, "%s", path);
+    else snprintf(full, sizeof full, "\\\\.\\%s", path);
+    hport = CreateFileA(full, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+    if (hport == INVALID_HANDLE_VALUE) {
+        e = GetLastError();
+        if (e == ERROR_ACCESS_DENIED) snprintf(port_err, sizeof port_err, "Cannot open %s: in use by another program", path);
+        else if (e == ERROR_FILE_NOT_FOUND) snprintf(port_err, sizeof port_err, "Cannot open %s: no such port", path);
+        else snprintf(port_err, sizeof port_err, "Cannot open %s: Windows error %lu", path, (unsigned long)e);
+        return 0;
+    }
+    memset(&dcb, 0, sizeof dcb);
+    dcb.DCBlength = sizeof dcb;
+    GetCommState(hport, &dcb);
+    dcb.BaudRate = CBR_115200;
+    dcb.ByteSize = 8;
+    dcb.Parity = NOPARITY;
+    dcb.StopBits = ONESTOPBIT;
+    dcb.fBinary = TRUE;
+    dcb.fParity = FALSE;
+    dcb.fOutxCtsFlow = FALSE;
+    dcb.fOutxDsrFlow = FALSE;
+    dcb.fDsrSensitivity = FALSE;
+    dcb.fTXContinueOnXoff = TRUE;
+    dcb.fOutX = FALSE;
+    dcb.fInX = FALSE;
+    dcb.fErrorChar = FALSE;
+    dcb.fNull = FALSE;
+    dcb.fAbortOnError = FALSE;
+    /* DTR up, as Linux leaves it on open: the radio was seen to answer that
+       way; with DTR low it may keep quiet */
+    dcb.fDtrControl = DTR_CONTROL_ENABLE;
+    dcb.fRtsControl = RTS_CONTROL_ENABLE;
+    /* reads return what is there at once; writes may wait a little */
+    to.ReadIntervalTimeout = MAXDWORD;
+    to.ReadTotalTimeoutMultiplier = 0;
+    to.ReadTotalTimeoutConstant = 0;
+    to.WriteTotalTimeoutMultiplier = 0;
+    to.WriteTotalTimeoutConstant = 1000;
+    if (!SetCommState(hport, &dcb) || !SetCommTimeouts(hport, &to)) {
+        snprintf(port_err, sizeof port_err, "Cannot open %s: not a serial port that can be set up", path);
+        CloseHandle(hport);
+        hport = INVALID_HANDLE_VALUE;
+        return 0;
+    }
+    PurgeComm(hport, PURGE_RXCLEAR | PURGE_TXCLEAR);
+    return 1;
+}
+
+static void port_close(void)
+{
+    if (hport != INVALID_HANDLE_VALUE) CloseHandle(hport);
+    hport = INVALID_HANDLE_VALUE;
+}
+
+static void port_flush_in(void)
+{
+    if (hport != INVALID_HANDLE_VALUE) PurgeComm(hport, PURGE_RXCLEAR);
+}
+
+/* what the port has: the byte count, 0 for nothing yet, -1 when it is gone */
+static int port_read(char *buf, int n)
+{
+    DWORD got = 0;
+
+    if (hport == INVALID_HANDLE_VALUE) return -1;
+    if (!ReadFile(hport, buf, (DWORD)n, &got, NULL)) return -1;
+    return (int)got;
+}
+
+static void send_raw(const char *s, int n)
+{
+    DWORD put;
+
+    if (hport == INVALID_HANDLE_VALUE) return;
+    if (!WriteFile(hport, s, (DWORD)n, &put, NULL)) { /* a dead port shows up as a timeout */ }
+}
+
+#else /* POSIX */
+
+static int fd = -1;
+
+static int port_is_open(void)
+{
+    return fd >= 0;
+}
+
+/* The port to use: want, if given, else the radio by its USB identity (Linux
+   keeps a stable name for it), else the first CDC serial port: ttyACM* on
+   Linux, cu.usbmodem* on macOS. */
+static int find_port(const char *want, char *out, size_t outlen)
 {
     static const char *prefixes[] = { "ttyACM", "cu.usbmodem", NULL };
     DIR *d;
     struct dirent *e;
     int i, found = 0;
 
+    if (want) {
+        snprintf(out, outlen, "%s", want);
+        snprintf(port_desc, sizeof port_desc, "%s", want);
+        return 1;
+    }
     d = opendir("/dev/serial/by-id");
     if (d) {
         while ((e = readdir(d)) != NULL) {
@@ -102,7 +281,7 @@ static int find_port(char *out, size_t outlen)
             }
         }
         closedir(d);
-        if (found) return 1;
+        if (found) { snprintf(port_desc, sizeof port_desc, "%s", out); return 1; }
     }
     d = opendir("/dev");
     if (!d) return 0;
@@ -117,17 +296,26 @@ static int find_port(char *out, size_t outlen)
         }
     }
     closedir(d);
+    if (found) snprintf(port_desc, sizeof port_desc, "%s", out);
     return found;
 }
 
-static int open_port(const char *path)
+static int port_open(const char *path)
 {
     struct termios t;
-    int f, m;
+    int f;
 
     f = open(path, O_RDWR | O_NOCTTY | O_NONBLOCK);
-    if (f < 0) return -1;
-    if (tcgetattr(f, &t) < 0) { close(f); return -1; }
+    if (f < 0) {
+        if (errno == EACCES) snprintf(port_err, sizeof port_err, "No permission for %s (join the dialout group)", path);
+        else snprintf(port_err, sizeof port_err, "Cannot open %s: %s", path, strerror(errno));
+        return 0;
+    }
+    if (tcgetattr(f, &t) < 0) {
+        snprintf(port_err, sizeof port_err, "Cannot open %s: %s", path, strerror(errno));
+        close(f);
+        return 0;
+    }
     cfmakeraw(&t);
     cfsetispeed(&t, B115200);
     cfsetospeed(&t, B115200);
@@ -136,12 +324,38 @@ static int open_port(const char *path)
     t.c_cflag = (t.c_cflag & ~CSIZE) | CS8;
     t.c_cc[VMIN] = 0;
     t.c_cc[VTIME] = 0;
-    if (tcsetattr(f, TCSANOW, &t) < 0) { close(f); return -1; }
+    if (tcsetattr(f, TCSANOW, &t) < 0) {
+        snprintf(port_err, sizeof port_err, "Cannot open %s: %s", path, strerror(errno));
+        close(f);
+        return 0;
+    }
     /* DTR stays asserted, as the kernel leaves it on open: the radio was seen
        to answer that way; with DTR low it may keep quiet */
-    (void)m;
     tcflush(f, TCIOFLUSH);
-    return f;
+    fd = f;
+    return 1;
+}
+
+static void port_close(void)
+{
+    if (fd >= 0) close(fd);
+    fd = -1;
+}
+
+static void port_flush_in(void)
+{
+    if (fd >= 0) tcflush(fd, TCIFLUSH);
+}
+
+/* what the port has: the byte count, 0 for nothing yet, -1 when it is gone */
+static int port_read(char *buf, int n)
+{
+    ssize_t got;
+
+    if (fd < 0) return -1;
+    got = read(fd, buf, (size_t)n);
+    if (got < 0) return errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR ? 0 : -1;
+    return (int)got;
 }
 
 static void send_raw(const char *s, int n)
@@ -149,6 +363,8 @@ static void send_raw(const char *s, int n)
     if (fd < 0) return;
     if (write(fd, s, (size_t)n) < 0) { /* a dead port shows up as a timeout */ }
 }
+
+#endif
 
 /* a # command: fields joined by tabs, the checksum and CR LF */
 static int build(char *out, size_t outlen, const char *type, const char *a1, const char *a2, const char *a3)
@@ -229,8 +445,7 @@ static void finish(radio_state *r, int ok, const char *msg)
 
 static void disconnect(radio_state *r, const char *why)
 {
-    if (fd >= 0) close(fd);
-    fd = -1;
+    port_close();
     rxlen = 0;
     st = S_NOPORT;
     awaiting = W_NONE;
@@ -248,7 +463,7 @@ static void disconnect(radio_state *r, const char *why)
 static void start_detect(radio_state *r)
 {
     rxlen = 0;
-    tcflush(fd, TCIFLUSH);
+    port_flush_in();
     send_raw("?", 1);
     st = S_DETECT_WAIT;
     deadline = now_ms() + DETECT_MS;
@@ -260,17 +475,22 @@ static void try_open(radio_state *r)
     char path[128];
 
     if (!r->port_fixed) {
-        if (!find_port(path, sizeof path)) {
+        if (!find_port(NULL, path, sizeof path)) {
             set_status(r, "No radio found on USB");
             next_retry = now_ms() + RETRY_MS;
             return;
         }
         snprintf(r->port, sizeof r->port, "%s", path);
+    } else {
+        /* the given port: looked up only for its identity */
+        port_desc[0] = 0;
+        find_port(r->port, path, sizeof path);
     }
     /* the USB name tells the model, except that an FTA-850 says FTA-750 */
     {
-        const char *p = strstr(r->port, "FTA-");
+        const char *p = strstr(port_desc, "FTA-");
 
+        if (!p) p = strstr(r->port, "FTA-");
         r->usb_model = p ? atoi(p + 4) : 0;
         if (r->usb_model == 550 || r->usb_model == 450)
             snprintf(r->cphint, sizeof r->cphint, "switch it off, then hold MENU while switching it on");
@@ -279,12 +499,8 @@ static void try_open(radio_state *r)
         else
             snprintf(r->cphint, sizeof r->cphint, "switch it off, then hold SQL (FTA-850) or MENU (FTA-750/550/450) while switching it on");
     }
-    fd = open_port(r->port);
-    if (fd < 0) {
-        if (errno == EACCES)
-            snprintf(r->status, sizeof r->status, "No permission for %s (join the dialout group)", r->port);
-        else
-            snprintf(r->status, sizeof r->status, "Cannot open %s: %s", r->port, strerror(errno));
+    if (!port_open(r->port)) {
+        set_status(r, port_err);
         next_retry = now_ms() + RETRY_MS;
         return;
     }
@@ -811,25 +1027,25 @@ int radio_poll(radio_state *r)
 {
     long    t = now_ms();
     char    buf[1024];
-    ssize_t n;
+    int     n;
     char   *nl;
     int     changed = 0, i;
 
     if (r->sim) return sim_poll(r);
 
-    if (fd < 0) {
+    if (!port_is_open()) {
         if (t >= next_retry) { try_open(r); changed = 1; }
         return changed;
     }
 
     /* gather input */
-    while ((n = read(fd, buf, sizeof buf)) > 0) {
-        if (rxlen + n >= (ssize_t)sizeof rx) rxlen = 0;   /* garbage: drop it */
+    while ((n = port_read(buf, sizeof buf)) > 0) {
+        if (rxlen + n >= (int)sizeof rx) rxlen = 0;   /* garbage: drop it */
         memcpy(rx + rxlen, buf, (size_t)n);
-        rxlen += (int)n;
+        rxlen += n;
         changed = 1;
     }
-    if (n < 0 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
+    if (n < 0) {
         disconnect(r, "Radio unplugged");
         return 1;
     }
@@ -977,8 +1193,7 @@ void radio_cancel(radio_state *r)
 
 void radio_shutdown(radio_state *r)
 {
-    if (fd >= 0) close(fd);
-    fd = -1;
+    port_close();
     r->connected = 0;
     free(logbuf);
     logbuf = NULL;

@@ -1,0 +1,510 @@
+#!/usr/bin/env bash
+################################################################################
+#
+# Configure script for the FTA-850 programmer
+#
+# Puts on the machine what the build and the program need:
+#
+#   1. The build tools: compiler, make, git, curl (the Xcode command line
+#      tools on a Mac).
+#   2. The development packages the AMI tool kit links against: OpenSSL,
+#      ALSA, FluidSynth, FreeType, Fontconfig, X11, Wayland, libpng (on a
+#      Mac only openssl@3 and freetype, from Homebrew; the rest is the
+#      system frameworks).
+#   3. The AMI tool kit itself (amitk), fetched from GitHub into $AMIDIR
+#      (default ~/projects/amitk) and built, if it is not there already.
+#   4. Access to the radio's serial port: the dialout group on Linux.
+#
+# Each of these is installed when missing, or, when it cannot be installed
+# from here, reported with what to do, and the summary at the end says
+# whether the program will build and run.
+#
+# Options:
+#
+# --prompt  Ask yes or no before each install.
+# --check   Report what is missing and install nothing.
+# --help    Print this.
+#
+# Packages come from apt-get on Linux (Debian, Ubuntu and their relatives)
+# and from Homebrew on a Mac. On another system the missing packages are
+# named for installing by hand.
+#
+################################################################################
+
+prompt="0"
+check="0"
+for var in "$@"
+do
+
+    case "$var" in
+
+    --prompt) prompt="1" ;;
+    --check)  check="1" ;;
+    --help)
+
+        echo "Configure script for the FTA-850 programmer"
+        echo
+        echo "configure [--prompt] [--check]"
+        echo
+        echo "Installs what the build and the program need: the build tools, the"
+        echo "development packages, the AMI tool kit (amitk, fetched and built in"
+        echo "\$AMIDIR, default ~/projects/amitk), and access to the radio's serial"
+        echo "port. --prompt asks yes or no before each install. --check reports"
+        echo "and installs nothing."
+        exit 0
+        ;;
+
+    *)
+
+        echo "*** Option not recognized: $var"
+        echo "Terminating"
+        exit 1
+        ;;
+
+    esac
+
+done
+
+################################################################################
+#
+# Routines
+#
+
+#
+# Ask before an install when --prompt was given. The argument is what is about
+# to be installed. Returns 0 to go ahead, 1 to skip. With --check nothing is
+# installed, so the answer is always to skip.
+#
+function askinstall {
+
+    if [ "$check" = "1" ] ; then return 1; fi
+    if [ "$prompt" = "0" ] ; then return 0; fi
+    while true
+    do
+
+        printf "Install %s? [y/n] " "$1"
+        if ! read -r answer ; then echo; return 1; fi
+        case "$answer" in
+
+        [yY]|[yY][eE][sS]) return 0 ;;
+        [nN]|[nN][oO])     return 1 ;;
+        *) echo "Please answer y or n" ;;
+
+        esac
+
+    done
+
+}
+
+#
+# Note a problem that leaves the program unable to build or run. The lines
+# are printed again in the summary.
+#
+function warn {
+
+    echo "*** $1"
+    warnings="$warnings
+    $1"
+
+}
+
+#
+# Check a command exists
+#
+function checkexists {
+
+    command -v "$1" >/dev/null 2>&1
+
+}
+
+#
+# Check a package is installed, by the host's package manager
+#
+function checkpkg {
+
+    case "$host" in
+
+    linux)
+
+        if [ "$pkgmgr" = "apt" ]
+        then
+
+            if dpkg -s "$1" 2>/dev/null | grep -q '^Status: .* installed' ; then return 0; fi
+            return 1
+
+        fi
+        # no package manager we know: cannot tell, assume it is there
+        return 0
+        ;;
+
+    mac)
+
+        if [ -n "$brew" ] && "$brew" list --versions "$1" >/dev/null 2>&1 ; then return 0; fi
+        return 1
+        ;;
+
+    esac
+    return 0
+
+}
+
+################################################################################
+#
+# Find the host
+#
+warnings=""
+if [ "$(uname)" = "Linux" ]
+then
+
+    host="linux"
+    pkgmgr=""
+    if checkexists apt-get ; then pkgmgr="apt"; fi
+
+elif [ "$(uname)" = "Darwin" ]
+then
+
+    host="mac"
+    #
+    # Packages come from Homebrew. The Makefile finds them through
+    # /opt/homebrew/bin/brew, so look there when brew is not on the path.
+    #
+    brew="$(command -v brew)"
+    if [ -z "$brew" ] && [ -x /opt/homebrew/bin/brew ] ; then brew="/opt/homebrew/bin/brew"; fi
+    if [ -z "$brew" ] && [ -x /usr/local/bin/brew ] ; then brew="/usr/local/bin/brew"; fi
+
+else
+
+    echo "*** $(uname) is not a system this script knows (Linux or macOS)"
+    echo "    See the README for what the build needs"
+    exit 1
+
+fi
+
+#
+# Where the AMI tool kit lives: $AMIDIR if set (". setpath" in amitk sets
+# it), else the Makefile's default.
+#
+amidir="${AMIDIR:-$HOME/projects/amitk}"
+amirepo="https://github.com/samiam95124/amitk.git"
+
+################################################################################
+#
+# 1. The build tools
+#
+echo "Build tools"
+if [ "$host" = "mac" ]
+then
+
+    if xcode-select -p >/dev/null 2>&1 && checkexists cc
+    then
+
+        echo "    Xcode command line tools: installed"
+
+    else
+
+        echo "    Xcode command line tools: not installed"
+        if askinstall "the Xcode command line tools"
+        then
+
+            #
+            # This opens Apple's own installer window and returns at once
+            #
+            xcode-select --install
+            warn "The Xcode command line tools are installing in their own window: when that is done, run configure again"
+
+        else
+
+            warn "No Xcode command line tools: nothing can be compiled (xcode-select --install)"
+
+        fi
+
+    fi
+    if [ -z "$brew" ]
+    then
+
+        echo "    Homebrew: not installed"
+        warn "No Homebrew: openssl@3 and freetype cannot be installed, and the panel will not build. Install it from https://brew.sh, then run configure again"
+
+    else
+
+        echo "    Homebrew: $brew"
+
+    fi
+
+else
+
+    missingtools=""
+    for t in gcc make git curl pkg-config
+    do
+
+        if checkexists "$t" ; then echo "    $t: found"
+        else echo "    $t: not found"; missingtools="$missingtools $t"
+        fi
+
+    done
+    if [ -n "$missingtools" ]
+    then
+
+        if [ "$pkgmgr" = "apt" ]
+        then
+
+            tools="build-essential git curl pkgconf"
+            if askinstall "the build tools ($tools)"
+            then
+
+                sudo apt-get install -y $tools || warn "The build tools did not install:$missingtools"
+
+            else
+
+                warn "Build tools missing, nothing can be compiled: sudo apt-get install $tools"
+
+            fi
+
+        else
+
+            warn "Build tools missing, nothing can be compiled:$missingtools (no apt-get here, install them your way)"
+
+        fi
+
+    fi
+
+fi
+
+################################################################################
+#
+# 2. The development packages amitk and the panel link against
+#
+echo "Development packages"
+if [ "$host" = "linux" ]
+then
+
+    required="libssl-dev
+              libasound2-dev libfluidsynth-dev
+              libpng-dev zlib1g-dev
+              libfreetype-dev libfontconfig-dev
+              libx11-dev libxext-dev libxtst-dev
+              libwayland-dev libxkbcommon-dev"
+
+else
+
+    required="openssl@3 freetype"
+
+fi
+
+missingreq=""
+for p in $required
+do
+
+    if checkpkg "$p" ; then echo "    $p: installed"
+    else echo "    $p: not installed"; missingreq="$missingreq $p"
+    fi
+
+done
+
+pkgsinstalled="1"
+if [ -n "$missingreq" ]
+then
+
+    pkgsinstalled="0"
+    if [ "$host" = "linux" ] && [ "$pkgmgr" = "apt" ]
+    then
+
+        if askinstall "the packages:$missingreq"
+        then
+
+            if sudo apt-get install -y $missingreq ; then pkgsinstalled="1"
+            else warn "The packages did not install:$missingreq"
+            fi
+
+        else
+
+            warn "Packages missing, the build will fail: sudo apt-get install$missingreq"
+
+        fi
+
+    elif [ "$host" = "mac" ] && [ -n "$brew" ]
+    then
+
+        #
+        # Homebrew installs as the user, never with sudo
+        #
+        if askinstall "the Homebrew packages:$missingreq"
+        then
+
+            if "$brew" install $missingreq ; then pkgsinstalled="1"
+            else warn "The packages did not install:$missingreq"
+            fi
+
+        else
+
+            warn "Packages missing, the panel will not build: brew install$missingreq"
+
+        fi
+
+    elif [ "$host" = "mac" ]
+    then
+
+        warn "Packages missing, the panel will not build: brew install$missingreq (after installing Homebrew)"
+
+    else
+
+        warn "Packages missing, the build will fail. Without apt-get, install your system's versions of:$missingreq"
+
+    fi
+
+fi
+
+################################################################################
+#
+# 3. The AMI tool kit
+#
+# Fetched into $amidir if it is not there, then configured and built if its
+# libraries are not there. amitk's own configure installs the same packages
+# as above without asking, so when the packages were declined it is run with
+# --check, which only reports.
+#
+echo "AMI tool kit (amitk) in $amidir"
+amiok="0"
+if [ -d "$amidir/.git" ] || [ -f "$amidir/Makefile" ]
+then
+
+    echo "    source: present"
+
+else
+
+    echo "    source: not present"
+    if checkexists git && askinstall "amitk, cloned from $amirepo"
+    then
+
+        mkdir -p "$(dirname "$amidir")"
+        git clone --recurse-submodules "$amirepo" "$amidir" || warn "The clone of amitk failed"
+
+    elif ! checkexists git
+    then
+
+        warn "No git, so amitk cannot be fetched: nothing will build without it"
+
+    else
+
+        warn "amitk is not installed: nothing will build without it. git clone --recurse-submodules $amirepo $amidir"
+
+    fi
+
+fi
+
+if [ -f "$amidir/Makefile" ]
+then
+
+    if [ -f "$amidir/lib/libami_graph.a" ] && [ -f "$amidir/lib/libami_plain.a" ]
+    then
+
+        echo "    libraries: built"
+        amiok="1"
+
+    else
+
+        echo "    libraries: not built"
+        if askinstall "amitk's libraries (configure and make in $amidir)"
+        then
+
+            amiconf=""
+            if [ "$pkgsinstalled" = "0" ] ; then amiconf="--check"; fi
+            if (cd "$amidir" && ./configure $amiconf && make)
+            then
+
+                if [ -f "$amidir/lib/libami_graph.a" ] && [ -f "$amidir/lib/libami_plain.a" ]
+                then amiok="1"
+                else warn "amitk built, but its libraries are not in $amidir/lib"
+                fi
+
+            else
+
+                warn "The amitk build failed: see the messages above, then cd $amidir && ./configure && make"
+
+            fi
+
+        else
+
+            warn "amitk is not built: nothing will build without it. cd $amidir && ./configure && make"
+
+        fi
+
+    fi
+
+fi
+
+if [ "$amiok" = "1" ] && [ -z "$AMIDIR" ] && [ "$amidir" != "$HOME/projects/amitk" ]
+then
+
+    warn "amitk is at $amidir, which the Makefile will not find: export AMIDIR=$amidir (or . setpath there)"
+
+fi
+
+################################################################################
+#
+# 4. Access to the radio's serial port
+#
+# On Linux the radio's port belongs to the dialout group. On a Mac the port
+# is open to everyone.
+#
+echo "Serial port"
+if [ "$host" = "linux" ]
+then
+
+    if id -nG "$USER" 2>/dev/null | tr ' ' '\n' | grep -qx dialout
+    then
+
+        echo "    dialout group: member"
+
+    else
+
+        echo "    dialout group: not a member"
+        if askinstall "yourself in the dialout group (sudo usermod -aG dialout $USER)"
+        then
+
+            if sudo usermod -aG dialout "$USER"
+            then echo "    Added: it takes effect after you log out and in again"
+            else warn "The dialout group was not joined: the radio's port cannot be opened"
+            fi
+
+        else
+
+            warn "Not in the dialout group, the radio's port cannot be opened: sudo usermod -aG dialout $USER, then log out and in"
+
+        fi
+
+    fi
+
+else
+
+    echo "    no setup needed on macOS"
+
+fi
+
+################################################################################
+#
+# Station data, carried in the repository; "make data" refreshes it
+#
+if [ -f data/airports.csv ] && [ -f data/airport-frequencies.csv ] && [ -f data/navaids.csv ]
+then echo "Station data: present (make data refreshes it)"
+else warn "Station data is missing from data/: the station finder will have nothing to search (make data)"
+fi
+
+################################################################################
+#
+# Summary
+#
+echo
+if [ -n "$warnings" ]
+then
+
+    echo "Not ready:$warnings"
+    echo
+    echo "Fix these, then run configure again."
+    exit 1
+
+fi
+if [ "$check" = "1" ] ; then echo "Everything is in place"
+else echo "Everything is in place: run make, then ./fta850 (or ./fta850 --sim)"
+fi
+exit 0

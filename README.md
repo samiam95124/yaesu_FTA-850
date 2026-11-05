@@ -182,9 +182,11 @@ before relying on it.
   set it uses then (`cfg_write_areas_factory`, which includes the Bluetooth
   pairings). The model name, flash ID, serial number and the rest are never
   touched.
-- Before writing, the model code is read from the radio at both ends of its
-  memory and must match the image; the firmware must be 2.01 or later, as
-  the vendor software demands.
+- Before writing, the model code at the end of the radio's memory (7FFE on
+  the FTA-850, 3FFE on the others) is read and must match the image; the
+  firmware must be 2.01 or later, as the vendor software demands. The copy
+  at 0100 that Yaesu's FTA-850 files carry is not relied on: the radio
+  keeps its own bytes there (0101 on firmware 02.02.00).
 - The image is checked before it is written: every memory needs a name and
   a frequency or a position, every route a start and a destination with
   positions.
@@ -220,8 +222,10 @@ kept: 2 s for a reply, 5 tries, a status poll before every transfer, 64
 bytes per transfer. An idle `#CMDSY` every 3 s notices a radio that has
 gone away.
 
-The config memory is 32 kB with the model code 0x0352 at 0x0100 and
-0x7FFE. Its layout is in `cfg.h`. The GPS log is the MediaTek LOCUS format:
+The config memory is 32 kB with the model code 0x0352 at 0x7FFE (Yaesu's
+files also have it at 0x0100, but the radio holds 0x0101 there, so the
+session identifies the model by 0x0000 for the 16 kB models and 0x7FFE for
+the FTA-850). Its layout is in `cfg.h`. The GPS log is the MediaTek LOCUS format:
 4 kB sectors with a 64 byte header and 20 byte records (UTC time, fix,
 latitude and longitude as floats, height, speed in m/s, heading,
 checksum). The log is read at the GPS module's own 9600 baud; the vendor

@@ -304,7 +304,11 @@ const cfgmodel *cfg_model_of(const unsigned char *img)
 {
     int i;
 
-    for (i = 0; i < NMODELS; i++) if (get16(img, models[i].o_model) == models[i].code) return &models[i];
+    /* Yaesu's files carry the code at o_model; an image read from an FTA-850
+       has the firmware's own bytes there (0101), so the footer counts too */
+    for (i = 0; i < NMODELS; i++)
+        if (get16(img, models[i].o_model) == models[i].code || get16(img, models[i].o_footer) == models[i].code)
+            return &models[i];
     return NULL;
 }
 
@@ -388,8 +392,8 @@ int cfg_check(const unsigned char *img, char *err, size_t errlen)
     int f;
 
     if (!m) {
-        snprintf(err, errlen, "Not a radio image: model code %04X at 0000, %04X at 0100 (FTA-850 0352, FTA-750 02EE, FTA-550 0226, FTA-450 01C2)",
-                 get16(img, 0), get16(img, 0x100));
+        snprintf(err, errlen, "Not a radio image: model code %04X at 0000, %04X at 3FFE, %04X at 7FFE (FTA-850 0352, FTA-750 02EE, FTA-550 0226, FTA-450 01C2)",
+                 get16(img, 0), get16(img, 0x3ffe), get16(img, 0x7ffe));
         return 0;
     }
     f = get16(img, m->o_footer);

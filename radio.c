@@ -31,7 +31,7 @@ typedef enum { W_NONE, W_CMDOK, W_CEPSD, W_CEPDT, W_CVRDQ, W_LOGSTAT, W_LOGLINE,
 
 typedef enum {
     S_NOPORT, S_DETECT, S_DETECT_WAIT, S_HS_SYNC1, S_HS_SYNC2, S_HS_VER,
-    S_HS_STAT1, S_HS_RD1, S_HS_STAT2, S_HS_RD2, S_READY, S_KEEP,
+    S_HS_STAT1, S_HS_RD1, S_HS_STAT2, S_HS_RD2, S_HS_STAT3, S_HS_RD3, S_READY, S_KEEP,
     S_RD_STAT, S_RD_DATA,
     S_WR_STAT_H, S_WR_RD_H, S_WR_STAT_F, S_WR_RD_F, S_WR_STAT, S_WR_DATA,
     S_LG_STAT, S_LG_STATUS, S_LG_READ, S_LG_ERASE_STAT, S_LG_ERASE
@@ -324,7 +324,10 @@ static void advance(radio_state *r)
             issue_cmd("#CVRRQ", NULL, NULL, NULL, W_CVRDQ, S_HS_VER);
             break;
         case S_HS_VER:
-            /* which model: the code sits at 0000 on the 16 kB models, at 0100 on the FTA-850 */
+            /* which model: the 16 kB models keep the code at 0000. The FTA-850 has
+               FFFF there and keeps its code at 7FFE; Yaesu's files carry it at 0100
+               as well, but the radio itself holds 0101 there (firmware 02.02.00),
+               so that address is only the last resort */
             issue_status(S_HS_STAT1);
             break;
         case S_HS_STAT1: issue_read(0x0000, 2, S_HS_RD1); break;
@@ -332,8 +335,13 @@ static void advance(radio_state *r)
             if (hdr[0] == 0xff && hdr[1] == 0xff) { issue_status(S_HS_STAT2); break; }
             model_found(r, hdr[0] * 256 + hdr[1]);
             break;
-        case S_HS_STAT2: issue_read(0x0100, 2, S_HS_RD2); break;
+        case S_HS_STAT2: issue_read(0x7FFE, 2, S_HS_RD2); break;
         case S_HS_RD2:
+            if (!cfg_model_by_code(hdr[0] * 256 + hdr[1])) { issue_status(S_HS_STAT3); break; }
+            model_found(r, hdr[0] * 256 + hdr[1]);
+            break;
+        case S_HS_STAT3: issue_read(0x0100, 2, S_HS_RD3); break;
+        case S_HS_RD3:
             model_found(r, hdr[0] * 256 + hdr[1]);
             break;
         case S_KEEP:
@@ -355,7 +363,9 @@ static void advance(radio_state *r)
         case S_WR_RD_H:   issue_status(S_WR_STAT_F); break;
         case S_WR_STAT_F: issue_read(wr_model->o_footer, 2, S_WR_RD_F); break;
         case S_WR_RD_F:
-            if (hdr[0] != ftr[0] || hdr[1] != ftr[1] || hdr[0] * 256 + hdr[1] != wr_model->code) {
+            /* the footer is the radio's own copy of the code. The header is shown
+               but not required: an FTA-850 keeps 0101 at 0100, not 0352 */
+            if (ftr[0] * 256 + ftr[1] != wr_model->code) {
                 char m[128];
 
                 snprintf(m, sizeof m, "The radio holds model code %02X%02X/%02X%02X and the image is for an %s (%04X): not written",
@@ -406,7 +416,7 @@ static void step_failed(radio_state *r, const char *what)
 
     if (st == S_DETECT_WAIT) return;
     if (st == S_HS_SYNC1 || st == S_HS_SYNC2 || st == S_HS_VER || st == S_HS_STAT1 || st == S_HS_RD1 ||
-        st == S_HS_STAT2 || st == S_HS_RD2 || st == S_KEEP) {
+        st == S_HS_STAT2 || st == S_HS_RD2 || st == S_HS_STAT3 || st == S_HS_RD3 || st == S_KEEP) {
         snprintf(m, sizeof m, "Radio stopped answering (%s)", what);
         disconnect(r, m);
         return;
@@ -592,8 +602,8 @@ static void handle_line(radio_state *r, char *line)
         if (st == S_RD_DATA) {
             if ((int)addr != cur || len != CHUNK) return;
             memcpy(r->img + cur, data, CHUNK);
-        } else if (st == S_HS_RD1 || st == S_HS_RD2) {
-            if (addr != (st == S_HS_RD1 ? 0x0000u : 0x0100u) || len != 2) return;
+        } else if (st == S_HS_RD1 || st == S_HS_RD2 || st == S_HS_RD3) {
+            if (addr != (st == S_HS_RD1 ? 0x0000u : st == S_HS_RD2 ? 0x7FFEu : 0x0100u) || len != 2) return;
             memcpy(hdr, data, 2);
         } else if (st == S_WR_RD_H) {
             if ((int)addr != wr_model->o_model || len != 2) return;

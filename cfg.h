@@ -3,7 +3,9 @@
  * memory as the programming port reads it, which is also what Yaesu's own
  * software keeps in its .dat files. Two layouts exist:
  *
- * FTA-850L (YCE46): 32 kB, model code 0352 at 0100 and 7FFE. Offsets in hex:
+ * FTA-850L (YCE46): 32 kB, model code 0352 at 7FFE, and at 0100 in Yaesu's
+ * files only: the radio itself keeps 0101 there (firmware 02.02.00). Offsets
+ * in hex:
  *   0106  function mode (zeroed by the vendor software)
  *   010A  dual watch (priority) frequency, 3 bytes BCD "118500", FF none
  *   0110  dimmer        0111 lamp        0112 key beep     0113 TX time out
@@ -41,7 +43,7 @@
  *         +13 frequency BCD 3, +16 latitude BCD "DDMMmmm0",
  *         +1A longitude BCD "0DDDMMmmm0", +1F hemispheres 1 NE 2 NW 3 SE
  *         4 SW, +20 name 14 chars, +2F shift 0/1
- *   7FFE  model code again
+ *   7FFE  model code: the radio's own copy, the one that identifies it
  *
  * FTA-750L, FTA-550L, FTA-450L (YCE01): 16 kB, model code 02EE, 0226 or
  * 01C2 at 0000 and 3FFE. The same ideas, packed differently:
